@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createRoom } from "./services/rooms";
 import { createQuestion, getQuestions } from "./services/questions";
 import { createAssignment, getAssignments } from "./services/assignments";
+import { createResponse, getResponses } from "./services/responses";
 import { supabase } from "./lib/supabase";
 
 type Player = {
@@ -27,6 +28,13 @@ type Assignment = {
   room_id: string;
 };
 
+type Response = {
+  id: string;
+  player_id: string;
+  question_id: string;
+  answer_text: string;
+};
+
 export default function App() {
   const [roomCode, setRoomCode] = useState("");
   const [joinCode, setJoinCode] = useState("");
@@ -38,6 +46,10 @@ export default function App() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
 
   const [myQuestion, setMyQuestion] = useState<Question | null>(null);
+
+  const [responses, setResponses] = useState<Response[]>([]);
+
+  const [answerText, setAnswerText] = useState("");
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
 
@@ -117,11 +129,17 @@ export default function App() {
 
     if (roomAssignments?.length) {
       setAssignments(roomAssignments);
-      loadMyQuestion();
+      await loadMyQuestion();
     }
 
     setAssignments(roomAssignments || []);
-    await loadMyQuestion();
+    await loadResponses(room.id);
+  }
+
+  async function loadResponses(roomId: string) {
+    const { data } = await getResponses(roomId);
+
+    setResponses(data || []);
   }
 
   async function handleLeave() {
@@ -240,6 +258,7 @@ export default function App() {
           setAssignments(data || []);
 
           loadMyQuestion();
+          if (currentRoom) await loadResponses(currentRoom.id);
         }
       )
 
@@ -293,8 +312,45 @@ export default function App() {
 
     setAssignments(data || []);
     await loadMyQuestion();
+    await loadResponses(currentRoom.id);
     alert("Perguntas distribuídas!");
   }
+
+  async function handleSendAnswer() {
+    if (!currentRoom || !currentPlayer || !myQuestion) return;
+
+    const already = responses.find(
+      (r) => r.player_id === currentPlayer.id && r.question_id === myQuestion.id,
+    );
+
+    if (already) {
+      alert("Você já respondeu essa pergunta.");
+      return;
+    }
+
+    const { error } = await createResponse(
+      currentRoom.id,
+      currentPlayer.id,
+      myQuestion.id,
+      answerText,
+    );
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setAnswerText("");
+    await loadResponses(currentRoom.id);
+    alert("Resposta enviada!");
+  }
+
+  const hasAnswered =
+    currentPlayer && myQuestion
+      ? responses.some(
+          (r) => r.player_id === currentPlayer.id && r.question_id === myQuestion.id,
+        )
+      : false;
 
   return (
     <div style={{ padding: 24 }}>
@@ -406,6 +462,25 @@ export default function App() {
           <h2>Pergunta Recebida</h2>
           <p>O que você faria se...</p>
           <strong>{myQuestion.question_text}</strong>
+
+          {assignments.length === players.length && (
+            <div style={{ marginTop: 12 }}>
+              <p>Responda:</p>
+              <input
+                style={{ width: "400px" }}
+                placeholder="Escreva sua resposta..."
+                value={answerText}
+                onChange={(e) => setAnswerText(e.target.value)}
+                disabled={hasAnswered}
+              />
+              <br />
+              <br />
+              <button onClick={handleSendAnswer} disabled={hasAnswered || !answerText.trim()}>
+                Enviar Resposta
+              </button>
+              {hasAnswered && <p>Você já respondeu essa pergunta.</p>}
+            </div>
+          )}
         </div>
       )}
     </div>
