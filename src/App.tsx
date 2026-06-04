@@ -103,14 +103,7 @@ export default function App() {
         if (!pErr && player) {
           setCurrentRoom(data);
           setCurrentPlayer(player);
-          // refresh lists
-          loadPlayers(data.id);
-          loadQuestions(data.id);
-          const { data: roomAssignments } = await getAssignments(data.id);
-          if (roomAssignments?.length) {
-            setAssignments(roomAssignments);
-            await loadMyQuestion();
-          }
+          await reloadRoomState(data.id);
         }
       } catch (e) {
         console.error(e);
@@ -139,28 +132,48 @@ export default function App() {
 
     setCurrentRoom(room);
     setCurrentPlayer(player);
-    // If the current client created the room earlier in this session,
-    // keep the isCreator flag. Otherwise ensure it's false.
     if (joinCode !== room.code) setIsCreator(false);
 
-    loadPlayers(room.id);
-    loadQuestions(room.id);
-    const { data: roomAssignments } = await getAssignments(room.id);
-
-    if (roomAssignments?.length) {
-      setAssignments(roomAssignments);
-      await loadMyQuestion();
-    }
-
-    setAssignments(roomAssignments || []);
-    await loadResponses(room.id);
+    await reloadRoomState(room.id);
   }
 
-  async function loadResponses(roomId: string) {
+  const loadResponses = useCallback(async (roomId: string) => {
     const { data } = await getResponses(roomId);
 
     setResponses(data || []);
-  }
+  }, []);
+
+  const loadAssignments = useCallback(async (roomId: string) => {
+    const { data } = await getAssignments(roomId);
+
+    setAssignments(data || []);
+  }, []);
+
+  const loadPlayers = useCallback(async (roomId: string) => {
+    const { data } = await svcGetPlayers(roomId);
+
+    setPlayers(data || []);
+  }, []);
+
+  const loadQuestions = useCallback(async (roomId: string) => {
+    const { data } = await getQuestions(roomId);
+
+    setQuestions(data || []);
+  }, []);
+
+  const reloadRoomState = useCallback(
+    async (roomId: string) => {
+      await Promise.all([
+        loadPlayers(roomId),
+        loadQuestions(roomId),
+        loadAssignments(roomId),
+        loadResponses(roomId),
+      ]);
+
+      await loadMyQuestion();
+    },
+    [loadPlayers, loadQuestions, loadAssignments, loadResponses, loadMyQuestion],
+  );
 
   async function runValidation() {
     if (!currentRoom) {
@@ -278,7 +291,7 @@ export default function App() {
       loadPlayers(currentRoom.id);
       loadQuestions(currentRoom.id);
     }
-  }, [currentRoom, players.length, questions.length, assignments.length]);
+  }, [currentRoom, players.length, questions.length, assignments.length, loadPlayers, loadQuestions]);
 
   useEffect(() => {
     if (!joinCode) return;
@@ -301,7 +314,7 @@ export default function App() {
             .single();
 
           if (room) {
-            loadPlayers(room.id);
+            await reloadRoomState(room.id);
           }
         },
       )
@@ -321,7 +334,7 @@ export default function App() {
             .single();
 
           if (room) {
-            loadQuestions(room.id);
+            await reloadRoomState(room.id);
           }
         },
       ) 
@@ -336,13 +349,7 @@ export default function App() {
         async () => {
           if (!currentRoom) return;
 
-          const { data } =
-            await getAssignments(currentRoom.id);
-
-          setAssignments(data || []);
-
-          loadMyQuestion();
-          if (currentRoom) await loadResponses(currentRoom.id);
+          await reloadRoomState(currentRoom.id);
         }
       )
 
@@ -351,7 +358,7 @@ export default function App() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [joinCode, currentRoom, loadMyQuestion]);
+  }, [joinCode, currentRoom, reloadRoomState]);
   async function handleDistributeQuestions() {
     if (!currentRoom) return;
 
