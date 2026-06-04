@@ -143,7 +143,8 @@ export default function App() {
 
     setCurrentRoom(room);
     setCurrentPlayer(player);
-    if (joinCode !== room.code) setIsCreator(false);
+    // Quem entra via rota de join nunca é o criador
+    setIsCreator(false);
 
     await reloadRoomState(room.id);
   }
@@ -441,6 +442,11 @@ export default function App() {
       return;
     }
 
+    if (players.length < 2) {
+      alert('É necessário pelo menos 2 jogadores para distribuir perguntas.');
+      return;
+    }
+
     const shuffledQuestions = [...questions];
 
     let valid = false;
@@ -490,6 +496,11 @@ export default function App() {
 
     if (responses.length !== assignments.length) {
       alert("Nem todos responderam ainda.");
+      return;
+    }
+
+    if (players.length < 2) {
+      alert('É necessário pelo menos 2 jogadores para distribuir fichas.');
       return;
     }
 
@@ -747,6 +758,13 @@ export default function App() {
             </>
           )}
         </>
+      )}
+
+      {/* Botão para entrantes carregarem manualmente sua ficha caso já tenha sido distribuída */}
+      {currentPlayer && !isCreator && cardAssignments.length > 0 && !myCard && (
+        <div style={{ marginTop: 12 }}>
+          <button onClick={loadMyCard}>🔃 Carregar minha ficha</button>
+        </div>
       )}
 
       {myCard && (

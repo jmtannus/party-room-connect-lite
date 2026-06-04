@@ -13,7 +13,9 @@ export async function createResponse(
       player_id: playerId,
       question_id: questionId,
       answer_text: answerText,
-    });
+    })
+    .select()
+    .single();
 }
 
 export async function getResponses(roomId: string) {
