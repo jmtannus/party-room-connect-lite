@@ -454,11 +454,17 @@ export default function App() {
     }
 
     for (let i = 0; i < players.length; i++) {
-      await createAssignment(
+      const { data: asg, error: asgErr } = await createAssignment(
         currentRoom.id,
         players[i].id,
         shuffledQuestions[i].id,
       );
+
+      if (asgErr) {
+        console.error('Erro ao criar assignment', asgErr);
+        alert('Erro ao distribuir perguntas. Veja console para detalhes.');
+        return;
+      }
     }
 
     const { data } = await getAssignments(currentRoom.id);

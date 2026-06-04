@@ -11,7 +11,9 @@ export async function createAssignment(
       room_id: roomId,
       player_id: playerId,
       question_id: questionId,
-    });
+    })
+    .select()
+    .single();
 }
 
 export async function getAssignments(roomId: string) {
