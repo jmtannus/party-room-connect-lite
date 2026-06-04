@@ -193,12 +193,12 @@ export default function App() {
 
     // check each player's assignment
     for (const player of p) {
-      const asg = a.find((x: any) => x.player_id === player.id);
+      const asg = a.find((x: Assignment) => x.player_id === player.id);
       if (!asg) {
         msgs.push(`Jogador ${player.name} (id=${player.id}) não recebeu atribuição.`);
         continue;
       }
-      const qItem = q.find((x: any) => x.id === asg.question_id);
+      const qItem = q.find((x: Question) => x.id === asg.question_id);
       if (!qItem) {
         msgs.push(`Atribuição de ${player.name} aponta para pergunta ausente (id=${asg.question_id}).`);
         continue;
@@ -208,10 +208,10 @@ export default function App() {
 
     // verify current player has a question if assignments present
     if (currentPlayer) {
-      const myAsg = a.find((x: any) => x.player_id === currentPlayer.id);
+      const myAsg = a.find((x: Assignment) => x.player_id === currentPlayer.id);
       if (!myAsg) msgs.push("Você ainda não recebeu uma pergunta.");
       else {
-        const qItem = q.find((x: any) => x.id === myAsg.question_id);
+        const qItem = q.find((x: Question) => x.id === myAsg.question_id);
         if (!qItem) msgs.push("Sua pergunta atribuída não foi encontrada.");
         else msgs.push(`Sua pergunta: ${qItem.question_text}`);
       }
