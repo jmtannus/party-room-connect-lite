@@ -10,3 +10,12 @@ export async function createRoom(code: string) {
     .select()
     .single();
 }
+export async function getRoomByCode(
+  code: string
+) {
+  return supabase
+    .from("rooms")
+    .select("*")
+    .eq("code", code)
+    .single();
+}
