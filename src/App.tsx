@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react";
 import { createRoom } from "./services/rooms";
+import { createQuestion } from "./services/questions";
 import { supabase } from "./lib/supabase";
 
 export default function App() {
   const [roomCode, setRoomCode] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [playerName, setPlayerName] = useState("");
+
   const [players, setPlayers] = useState<any[]>([]);
+
+  const [currentRoom, setCurrentRoom] = useState<any>(null);
+  const [currentPlayer, setCurrentPlayer] = useState<any>(null);
+
+  const [questionText, setQuestionText] = useState("");
 
   async function handleCreateRoom() {
     const code = Math.random()
@@ -37,17 +44,22 @@ export default function App() {
       return;
     }
 
-    const { error } = await supabase
+    const { data: player, error } = await supabase
       .from("players")
       .insert({
         room_id: room.id,
         name: playerName,
-      });
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error(error);
       return;
     }
+
+    setCurrentRoom(room);
+    setCurrentPlayer(player);
 
     loadPlayers(room.id);
   }
@@ -60,6 +72,28 @@ export default function App() {
       .order("created_at");
 
     setPlayers(data || []);
+  }
+
+  async function handleSendQuestion() {
+    if (!currentRoom || !currentPlayer) {
+      alert("Entre na sala primeiro");
+      return;
+    }
+
+    const { error } = await createQuestion(
+      currentRoom.id,
+      currentPlayer.id,
+      questionText
+    );
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    alert("Pergunta enviada!");
+
+    setQuestionText("");
   }
 
   useEffect(() => {
@@ -95,7 +129,7 @@ export default function App() {
 
   return (
     <div style={{ padding: 24 }}>
-      <h1>Party Room Connect Lite</h1>
+      <h1>🎲 Party Room Connect Lite</h1>
 
       <button onClick={handleCreateRoom}>
         Criar Sala
@@ -114,7 +148,7 @@ export default function App() {
       <input
         placeholder="Código da sala"
         value={joinCode}
-        onChange={(e) => setJoinCode(e.target.value)}
+        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
       />
 
       <br />
@@ -144,6 +178,31 @@ export default function App() {
           </li>
         ))}
       </ul>
+
+      <hr />
+
+      <h2>Sua Pergunta</h2>
+
+      <p>Complete a frase:</p>
+
+      <strong>O que você faria se...</strong>
+
+      <br />
+      <br />
+
+      <input
+        style={{ width: "400px" }}
+        placeholder="ganhasse na loteria?"
+        value={questionText}
+        onChange={(e) => setQuestionText(e.target.value)}
+      />
+
+      <br />
+      <br />
+
+      <button onClick={handleSendQuestion}>
+        Enviar Pergunta
+      </button>
     </div>
   );
 }
