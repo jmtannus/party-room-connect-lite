@@ -248,18 +248,6 @@ export default function App() {
     setMyQuestion(null);
   }
 
-  async function loadPlayers(roomId: string) {
-    const { data } = await svcGetPlayers(roomId);
-
-    setPlayers(data || []);
-  }
-
-  async function loadQuestions(roomId: string) {
-    const { data } = await getQuestions(roomId);
-
-    setQuestions(data || []);
-  }
-
   async function handleSendQuestion() {
     if (!currentRoom || !currentPlayer) {
       alert("Entre na sala primeiro");
