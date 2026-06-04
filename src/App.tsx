@@ -1,203 +1,209 @@
 import { useEffect, useState } from "react";
-import { createResponse, getResponses,
-} from "./services/responses";
+import { createResponse, getResponses } from "./services/responses";
 import { createRoom } from "./services/rooms";
-import {
-  createQuestion,
-  getQuestions,
-} from "./services/questions";
-import {
-  createAssignment,
-  getAssignments,
-} from "./services/assignments";
+import { createQuestion, getQuestions } from "./services/questions";
+import { createAssignment, getAssignments } from "./services/assignments";
 import { supabase } from "./lib/supabase";
 
 export default function App() {
-      const [roomCode, setRoomCode] = useState("");
-      const [joinCode, setJoinCode] = useState("");
-      const [playerName, setPlayerName] = useState("");
+  const [roomCode, setRoomCode] = useState("");
+  const [joinCode, setJoinCode] = useState("");
+  const [playerName, setPlayerName] = useState("");
 
-      const [players, setPlayers] = useState<any[]>([]);
-      const [questions, setQuestions] = useState<any[]>([]);
+  const [players, setPlayers] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<any[]>([]);
 
-      const [assignments, setAssignments] = useState<any[]>([]);
-      const [responses, setResponses] = useState<any[]>([]);
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [responses, setResponses] = useState<any[]>([]);
 
-      const [myQuestion, setMyQuestion] = useState<any>(null);
+  const [myQuestion, setMyQuestion] = useState<any>(null);
 
-      const [answerText, setAnswerText] = useState("");
+  const [answerText, setAnswerText] = useState("");
 
-      const [currentRoom, setCurrentRoom] = useState<any>(null);
-      const [currentPlayer, setCurrentPlayer] = useState<any>(null);
+  const [currentRoom, setCurrentRoom] = useState<any>(null);
+  const [currentPlayer, setCurrentPlayer] = useState<any>(null);
 
-      const [questionText, setQuestionText] = useState("");
+  const [questionText, setQuestionText] = useState("");
 
-      async function loadMyQuestion() {
-        if (!currentPlayer || !currentRoom) return;
+  async function loadMyQuestion() {
+    if (!currentPlayer || !currentRoom) return;
 
-        const { data: roomAssignments } =
-          await getAssignments(currentRoom.id);
+    const { data: roomAssignments } = await getAssignments(currentRoom.id);
 
-        const myAssignment =
-          roomAssignments?.find(
-            (a) => a.player_id === currentPlayer.id
-          );
+    const myAssignment = roomAssignments?.find(
+      (a) => a.player_id === currentPlayer.id,
+    );
 
-        if (!myAssignment) return;
+    if (!myAssignment) return;
 
-        const { data: question } = await supabase
-          .from("questions")
-          .select("*")
-          .eq("id", myAssignment.question_id)
-          .single();
+    const { data: question } = await supabase
+      .from("questions")
+      .select("*")
+      .eq("id", myAssignment.question_id)
+      .single();
 
-        setMyQuestion(question);
-      }
+    setMyQuestion(question);
+  }
 
-      async function handleCreateRoom() {
-        const code = Math.random()
-          .toString(36)
-          .substring(2, 8)
-          .toUpperCase();
+  async function handleCreateRoom() {
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-        const { data, error } = await createRoom(code);
+    const { data, error } = await createRoom(code);
 
-        if (error) {
-          console.error(error);
-          return;
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setRoomCode(data.code);
+    setJoinCode(data.code);
+  }
+
+  async function handleJoinRoom() {
+    const { data: room } = await supabase
+      .from("rooms")
+      .select("*")
+      .eq("code", joinCode)
+      .single();
+
+    if (!room) {
+      alert("Sala não encontrada");
+      return;
+    }
+
+    const { data: player, error } = await supabase
+      .from("players")
+      .insert({
+        room_id: room.id,
+        name: playerName,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setCurrentRoom(room);
+    setCurrentPlayer(player);
+
+    loadPlayers(room.id);
+    loadQuestions(room.id);
+    const { data: roomAssignments } = await getAssignments(room.id);
+
+    setAssignments(roomAssignments || []);
+    loadResponses(room.id);
+  }
+
+  async function loadPlayers(roomId: string) {
+    const { data } = await supabase
+      .from("players")
+      .select("*")
+      .eq("room_id", roomId)
+      .order("created_at");
+
+    setPlayers(data || []);
+  }
+
+  async function loadQuestions(roomId: string) {
+    const { data } = await getQuestions(roomId);
+
+    setQuestions(data || []);
+  }
+
+  async function handleSendQuestion() {
+    if (!currentRoom || !currentPlayer) {
+      alert("Entre na sala primeiro");
+      return;
+    }
+
+    const { error } = await createQuestion(
+      currentRoom.id,
+      currentPlayer.id,
+      questionText,
+    );
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    alert("Pergunta enviada!");
+
+    setQuestionText("");
+
+    loadQuestions(currentRoom.id);
+  }
+  async function loadResponses(roomId: string) {
+    const { data } = await getResponses(roomId);
+
+    setResponses(data || []);
+  }
+  useEffect(() => {
+    if (!joinCode) return;
+
+    const channel = supabase
+      .channel("room-updates")
+
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "players",
+        },
+        async () => {
+          const { data: room } = await supabase
+            .from("rooms")
+            .select("*")
+            .eq("code", joinCode)
+            .single();
+
+          if (room) {
+            loadPlayers(room.id);
+          }
+        },
+      )
+
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "questions",
+        },
+        async () => {
+          const { data: room } = await supabase
+            .from("rooms")
+            .select("*")
+            .eq("code", joinCode)
+            .single();
+
+          if (room) {
+            loadQuestions(room.id);
+          }
+        },
+      ) 
+      
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "assignments",
+        },
+        async () => {
+          if (!currentRoom) return;
+
+          const { data } =
+            await getAssignments(currentRoom.id);
+
+          setAssignments(data || []);
+
+          loadMyQuestion();
         }
-
-        setRoomCode(data.code);
-        setJoinCode(data.code);
-      }
-
-      async function handleJoinRoom() {
-        const { data: room } = await supabase
-          .from("rooms")
-          .select("*")
-          .eq("code", joinCode)
-          .single();
-
-        if (!room) {
-          alert("Sala não encontrada");
-          return;
-        }
-
-        const { data: player, error } = await supabase
-          .from("players")
-          .insert({
-            room_id: room.id,
-            name: playerName,
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error(error);
-          return;
-        }
-
-        setCurrentRoom(room);
-        setCurrentPlayer(player);
-
-        loadPlayers(room.id);
-        loadQuestions(room.id);
-        const { data: roomAssignments } = 
-          await getAssignments(room.id);
-        
-        setAssignments(roomAssignments || []);
-        loadResponses(room.id);
-      }
-
-      async function loadPlayers(roomId: string) {
-        const { data } = await supabase
-          .from("players")
-          .select("*")
-          .eq("room_id", roomId)
-          .order("created_at");
-
-        setPlayers(data || []);
-      }
-
-      async function loadQuestions(roomId: string) {
-        const { data } = await getQuestions(roomId);
-
-        setQuestions(data || []);
-      }
-
-      async function handleSendQuestion() {
-        if (!currentRoom || !currentPlayer) {
-          alert("Entre na sala primeiro");
-          return;
-        }
-
-        const { error } = await createQuestion(
-          currentRoom.id,
-          currentPlayer.id,
-          questionText
-        );
-
-        if (error) {
-          console.error(error);
-          return;
-        }
-
-        alert("Pergunta enviada!");
-
-        setQuestionText("");
-
-        loadQuestions(currentRoom.id);
-      }
-      async function loadResponses(roomId: string) {
-        const { data } = await getResponses(roomId);
-
-        setResponses(data || []);
-      }
-      useEffect(() => {
-        if (!joinCode) return;
-
-        const channel = supabase
-          .channel("room-updates")
-
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "players",
-            },
-            async () => {
-              const { data: room } = await supabase
-                .from("rooms")
-                .select("*")
-                .eq("code", joinCode)
-                .single();
-
-              if (room) {
-                loadPlayers(room.id);
-              }
-            }
-          )
-
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "questions",
-            },
-            async () => {
-              const { data: room } = await supabase
-                .from("rooms")
-                .select("*")
-                .eq("code", joinCode)
-                .single();
-
-              if (room) {
-                loadQuestions(room.id);
-              }
-            }
-          )
+      )
 
       .subscribe();
 
@@ -205,57 +211,53 @@ export default function App() {
       supabase.removeChannel(channel);
     };
   }, [joinCode]);
-      async function handleDistributeQuestions() {
-       if (!currentRoom) return;
-       
-       const { data: existingAssignments } =
-          await getAssignments(currentRoom.id);
+  async function handleDistributeQuestions() {
+    if (!currentRoom) return;
 
-       if (existingAssignments?.length) {
-          alert("Perguntas já distribuídas.");
-          return;
-        }
+    const { data: existingAssignments } = await getAssignments(currentRoom.id);
 
-        if (players.length !== questions.length) {
-          alert("Ainda faltam perguntas.");
-          return;
-        }
+    if (existingAssignments?.length) {
+      alert("Perguntas já distribuídas.");
+      return;
+    }
 
-        const shuffledQuestions = [...questions];
+    if (players.length !== questions.length) {
+      alert("Ainda faltam perguntas.");
+      return;
+    }
 
-        let valid = false;
+    const shuffledQuestions = [...questions];
 
-        while (!valid) {
-          shuffledQuestions.sort(() => Math.random() - 0.5);
+    let valid = false;
 
-          valid = players.every(
-            (player, index) =>
-              shuffledQuestions[index].player_id !== player.id
-          );
-        }
+    while (!valid) {
+      shuffledQuestions.sort(() => Math.random() - 0.5);
 
-        for (let i = 0; i < players.length; i++) {
-          await createAssignment(
-            currentRoom.id,
-            players[i].id,
-            shuffledQuestions[i].id
-          );
-        }
+      valid = players.every(
+        (player, index) => shuffledQuestions[index].player_id !== player.id,
+      );
+    }
 
-        const { data } = await getAssignments(currentRoom.id);
+    for (let i = 0; i < players.length; i++) {
+      await createAssignment(
+        currentRoom.id,
+        players[i].id,
+        shuffledQuestions[i].id,
+      );
+    }
 
-        setAssignments(data || []);
+    const { data } = await getAssignments(currentRoom.id);
 
-        alert("Perguntas distribuídas!");
-      }
+    setAssignments(data || []);
+    await loadMyQuestion();
+    alert("Perguntas distribuídas!");
+  }
 
   return (
     <div style={{ padding: 24 }}>
       <h1>🎲 Party Room Connect Lite</h1>
 
-      <button onClick={handleCreateRoom}>
-        Criar Sala
-      </button>
+      <button onClick={handleCreateRoom}>Criar Sala</button>
 
       {roomCode && (
         <p>
@@ -270,9 +272,7 @@ export default function App() {
       <input
         placeholder="Código da sala"
         value={joinCode}
-        onChange={(e) =>
-          setJoinCode(e.target.value.toUpperCase())
-        }
+        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
       />
 
       <br />
@@ -287,9 +287,7 @@ export default function App() {
       <br />
       <br />
 
-      <button onClick={handleJoinRoom}>
-        Entrar
-      </button>
+      <button onClick={handleJoinRoom}>Entrar</button>
 
       <hr />
 
@@ -297,9 +295,7 @@ export default function App() {
 
       <ul>
         {players.map((player) => (
-          <li key={player.id}>
-            {player.name}
-          </li>
+          <li key={player.id}>{player.name}</li>
         ))}
       </ul>
 
@@ -308,11 +304,10 @@ export default function App() {
       </p>
 
       {players.length > 0 &&
-        questions.length === players.length && assignments.length === 0 &&(
+        questions.length === players.length &&
+        assignments.length === 0 && (
           <>
-            <p>
-              ✅ Todos os participantes enviaram suas perguntas!
-            </p>
+            <p>✅ Todos os participantes enviaram suas perguntas!</p>
 
             <button onClick={handleDistributeQuestions}>
               🎲 Distribuir Perguntas
@@ -341,9 +336,7 @@ export default function App() {
       <br />
       <br />
 
-      <button onClick={handleSendQuestion}>
-        Enviar Pergunta
-      </button>
+      <button onClick={handleSendQuestion}>Enviar Pergunta</button>
     </div>
   );
 }
