@@ -175,10 +175,10 @@ export default function App() {
     const { data: assignmentsData } = await getAssignments(currentRoom.id);
     const { data: responsesData } = await getResponses(currentRoom.id);
 
-    const p = playersData || [];
-    const q = questionsData || [];
-    const a = assignmentsData || [];
-    const r = responsesData || [];
+    const p: Player[] = playersData || [];
+    const q: Question[] = questionsData || [];
+    const a: Assignment[] = assignmentsData || [];
+    const r: Response[] = responsesData || [];
 
     msgs.push(`Players: ${p.length}`);
     msgs.push(`Questions: ${q.length}`);
