@@ -66,6 +66,7 @@ export default function App() {
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
 
   const [questionText, setQuestionText] = useState("");
+  const [hideResponderName, setHideResponderName] = useState(false);
   const [isCreator, setIsCreator] = useState(false);
   const [validationMessages, setValidationMessages] = useState<string[]>([]);
 
@@ -646,6 +647,18 @@ export default function App() {
               <button onClick={loadMyCard}>🔃 Carregar minha ficha</button>
             </div>
           )}
+          {myCard && (
+            <div style={{ marginTop: 8 }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={hideResponderName}
+                  onChange={(e) => setHideResponderName(e.target.checked)}
+                />
+                Ocultar nome de quem respondeu
+              </label>
+            </div>
+          )}
           <div style={{ marginTop: 8 }}>
             <button onClick={handleLeave}>Sair</button>
           </div>
@@ -791,7 +804,7 @@ export default function App() {
             {myCard.response.answer_text}
           </blockquote>
           <p style={{ marginTop: 12, fontSize: "0.9em", color: "#666" }}>
-            Respondida por: {(() => {
+            Respondida por: {hideResponderName ? "Anônimo" : (() => {
               const responder = players.find((p) => p.id === myCard.response.player_id);
               return responder?.name || "Desconhecido";
             })()}
