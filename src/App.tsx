@@ -143,8 +143,12 @@ export default function App() {
 
     setCurrentRoom(room);
     setCurrentPlayer(player);
-    // Quem entra via rota de join nunca é o criador
-    setIsCreator(false);
+    // Se a sala recebida for a mesma sala criada nesta sessão, preserve o criador
+    if (room.code === roomCode) {
+      setIsCreator(true);
+    } else {
+      setIsCreator(false);
+    }
 
     await reloadRoomState(room.id);
   }
