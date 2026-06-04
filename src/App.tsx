@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { createRoom } from "./services/rooms";
-import { createQuestion, getQuestions, } from "./services/questions";
+import {
+  createQuestion,
+  getQuestions,
+} from "./services/questions";
 import { supabase } from "./lib/supabase";
 
 export default function App() {
@@ -9,12 +12,12 @@ export default function App() {
   const [playerName, setPlayerName] = useState("");
 
   const [players, setPlayers] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<any[]>([]);
 
   const [currentRoom, setCurrentRoom] = useState<any>(null);
   const [currentPlayer, setCurrentPlayer] = useState<any>(null);
 
   const [questionText, setQuestionText] = useState("");
-  const [questions, setQuestions] = useState<any[]>([]);
 
   async function handleCreateRoom() {
     const code = Math.random()
@@ -65,10 +68,6 @@ export default function App() {
     loadPlayers(room.id);
     loadQuestions(room.id);
   }
-  async function loadQuestions(roomId: string) {
-    const { data } = await getQuestions(roomId);
-    setQuestions(data || []);
-  }
 
   async function loadPlayers(roomId: string) {
     const { data } = await supabase
@@ -80,6 +79,11 @@ export default function App() {
     setPlayers(data || []);
   }
 
+  async function loadQuestions(roomId: string) {
+    const { data } = await getQuestions(roomId);
+
+    setQuestions(data || []);
+  }
 
   async function handleSendQuestion() {
     if (!currentRoom || !currentPlayer) {
@@ -101,14 +105,16 @@ export default function App() {
     alert("Pergunta enviada!");
 
     setQuestionText("");
-    loadQuestions(currentRoom.id);      
+
+    loadQuestions(currentRoom.id);
   }
 
   useEffect(() => {
     if (!joinCode) return;
 
     const channel = supabase
-      .channel("players")
+      .channel("room-updates")
+
       .on(
         "postgres_changes",
         {
@@ -128,6 +134,27 @@ export default function App() {
           }
         }
       )
+
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "questions",
+        },
+        async () => {
+          const { data: room } = await supabase
+            .from("rooms")
+            .select("*")
+            .eq("code", joinCode)
+            .single();
+
+          if (room) {
+            loadQuestions(room.id);
+          }
+        }
+      )
+
       .subscribe();
 
     return () => {
@@ -156,7 +183,9 @@ export default function App() {
       <input
         placeholder="Código da sala"
         value={joinCode}
-        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+        onChange={(e) =>
+          setJoinCode(e.target.value.toUpperCase())
+        }
       />
 
       <br />
@@ -186,6 +215,7 @@ export default function App() {
           </li>
         ))}
       </ul>
+
       <p>
         Perguntas enviadas: {questions.length} de {players.length}
       </p>
@@ -195,7 +225,7 @@ export default function App() {
           <p>
             ✅ Todos os participantes enviaram suas perguntas!
           </p>
-      )}
+        )}
 
       <hr />
 
