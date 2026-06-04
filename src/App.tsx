@@ -3,6 +3,7 @@ import { createRoom } from "./services/rooms";
 import { createQuestion, getQuestions } from "./services/questions";
 import { createAssignment, getAssignments } from "./services/assignments";
 import { createResponse, getResponses } from "./services/responses";
+import { createCardAssignment, getCardAssignments } from "./services/card_assignments";
 import { joinRoom, getPlayers as svcGetPlayers } from "./services/players";
 import { supabase } from "./lib/supabase";
 
@@ -36,6 +37,13 @@ type Response = {
   answer_text: string;
 };
 
+type CardAssignment = {
+  id: string;
+  player_id: string;
+  assignment_id: string;
+  room_id: string;
+};
+
 export default function App() {
   const [roomCode, setRoomCode] = useState("");
   const [joinCode, setJoinCode] = useState("");
@@ -49,6 +57,9 @@ export default function App() {
   const [myQuestion, setMyQuestion] = useState<Question | null>(null);
 
   const [responses, setResponses] = useState<Response[]>([]);
+  const [cardAssignments, setCardAssignments] = useState<CardAssignment[]>([]);
+
+  const [myCard, setMyCard] = useState<{ assignment: Assignment; response: Response } | null>(null);
 
   const [answerText, setAnswerText] = useState("");
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
@@ -143,6 +154,51 @@ export default function App() {
     setResponses(data || []);
   }, []);
 
+  const loadCardAssignments = useCallback(async (roomId: string) => {
+    const { data } = await getCardAssignments(roomId);
+
+    setCardAssignments(data || []);
+  }, []);
+
+  const loadMyCard = useCallback(async () => {
+    if (!currentPlayer || !currentRoom) return;
+
+    const { data: cardAsg } = await supabase
+      .from("card_assignments")
+      .select("*")
+      .eq("room_id", currentRoom.id)
+      .eq("player_id", currentPlayer.id)
+      .single();
+
+    if (!cardAsg) {
+      setMyCard(null);
+      return;
+    }
+
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select("*")
+      .eq("id", cardAsg.assignment_id)
+      .single();
+
+    if (!assignment) {
+      setMyCard(null);
+      return;
+    }
+
+    const { data: response } = await supabase
+      .from("responses")
+      .select("*")
+      .eq("question_id", assignment.question_id)
+      .single();
+
+    if (assignment && response) {
+      setMyCard({ assignment, response });
+    } else {
+      setMyCard(null);
+    }
+  }, [currentPlayer, currentRoom]);
+
   const loadAssignments = useCallback(async (roomId: string) => {
     const { data } = await getAssignments(roomId);
 
@@ -168,11 +224,13 @@ export default function App() {
         loadQuestions(roomId),
         loadAssignments(roomId),
         loadResponses(roomId),
+        loadCardAssignments(roomId),
       ]);
 
       await loadMyQuestion();
+      await loadMyCard();
     },
-    [loadPlayers, loadQuestions, loadAssignments, loadResponses, loadMyQuestion],
+    [loadPlayers, loadQuestions, loadAssignments, loadResponses, loadCardAssignments, loadMyQuestion, loadMyCard],
   );
 
   async function runValidation() {
@@ -246,6 +304,8 @@ export default function App() {
     setIsCreator(false);
     setAssignments([]);
     setMyQuestion(null);
+    setCardAssignments([]);
+    setMyCard(null);
   }
 
   async function handleSendQuestion() {
@@ -341,6 +401,20 @@ export default function App() {
         }
       )
 
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "card_assignments",
+        },
+        async () => {
+          if (!currentRoom) return;
+
+          await reloadRoomState(currentRoom.id);
+        }
+      )
+
       .subscribe();
 
     return () => {
@@ -395,6 +469,50 @@ export default function App() {
     alert("Perguntas distribuídas!");
   }
 
+  async function handleDistributeCards() {
+    if (!currentRoom) return;
+
+    if (!isCreator || !currentPlayer) {
+      alert("Apenas o criador da sala pode distribuir as fichas.");
+      return;
+    }
+
+    if (cardAssignments.length > 0) {
+      alert("Fichas já distribuídas.");
+      return;
+    }
+
+    if (responses.length !== assignments.length) {
+      alert("Nem todos responderam ainda.");
+      return;
+    }
+
+    // Embaralha os assignments para distribuir como fichas
+    const shuffledAssignments = [...assignments];
+    let valid = false;
+
+    while (!valid) {
+      shuffledAssignments.sort(() => Math.random() - 0.5);
+
+      valid = players.every(
+        (player, index) => shuffledAssignments[index].player_id !== player.id,
+      );
+    }
+
+    for (let i = 0; i < players.length; i++) {
+      await createCardAssignment(
+        currentRoom.id,
+        players[i].id,
+        shuffledAssignments[i].id,
+      );
+    }
+
+    const { data } = await getCardAssignments(currentRoom.id);
+    setCardAssignments(data || []);
+    await loadMyCard();
+    alert("Fichas distribuídas!");
+  }
+
   async function handleSendAnswer() {
     if (!currentRoom || !currentPlayer || !myQuestion) return;
 
@@ -440,6 +558,19 @@ export default function App() {
     if (players.length === 0) return "Ainda não há participantes.";
     if (questions.length < players.length) return `Faltam ${players.length - questions.length} pergunta(s).`;
     if (questions.length > players.length) return `Há mais perguntas do que jogadores (${questions.length} > ${players.length}).`;
+    return null;
+  })();
+
+  const allAnswered = assignments.length > 0 && responses.length === assignments.length;
+
+  const canDistributeCards =
+    isCreator && allAnswered && cardAssignments.length === 0;
+
+  const cardDistributeProblem = (() => {
+    if (!isCreator) return "Você não é o criador.";
+    if (cardAssignments.length > 0) return "Fichas já distribuídas.";
+    if (assignments.length === 0) return "Perguntas ainda não foram distribuídas.";
+    if (responses.length < assignments.length) return `Faltam ${assignments.length - responses.length} resposta(s).`;
     return null;
   })();
 
@@ -587,6 +718,51 @@ export default function App() {
               {hasAnswered && <p>Você já respondeu essa pergunta.</p>}
             </div>
           )}
+        </div>
+      )}
+
+      <hr />
+
+      {allAnswered && (
+        <>
+          <h2>Distribuir Fichas</h2>
+
+          {canDistributeCards ? (
+            <>
+              <p>✅ Todos responderam suas perguntas!</p>
+              <button onClick={handleDistributeCards}>🃏 Distribuir Fichas</button>
+            </>
+          ) : (
+            <>
+              <p>Status: {cardDistributeProblem}</p>
+              {!isCreator && allAnswered && cardAssignments.length === 0 && (
+                <p>Esperando o criador distribuir as fichas...</p>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {myCard && (
+        <div style={{ marginTop: 24, padding: 16, border: "2px solid #2196F3" }}>
+          <h2>🎴 Sua Ficha Recebida</h2>
+          <p>Pergunta:</p>
+          <strong>O que você faria se... {myCard.assignment && (
+            (() => {
+              const question = questions.find((q) => q.id === myCard.assignment.question_id);
+              return question?.question_text;
+            })()
+          )}</strong>
+          <p style={{ marginTop: 12 }}>Resposta:</p>
+          <blockquote style={{ fontStyle: "italic", margin: "8px 0", padding: "8px 12px", borderLeft: "4px solid #2196F3" }}>
+            {myCard.response.answer_text}
+          </blockquote>
+          <p style={{ marginTop: 12, fontSize: "0.9em", color: "#666" }}>
+            Respondida por: {(() => {
+              const responder = players.find((p) => p.id === myCard.response.player_id);
+              return responder?.name || "Desconhecido";
+            })()}
+          </p>
         </div>
       )}
     </div>
