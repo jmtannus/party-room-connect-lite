@@ -315,7 +315,9 @@ export default function App() {
       <br />
       <br />
 
-      <button onClick={handleJoinRoom}>Entrar</button>
+      <button onClick={handleJoinRoom} disabled={!!currentPlayer}>
+        Entrar
+      </button>
 
       <hr />
 
