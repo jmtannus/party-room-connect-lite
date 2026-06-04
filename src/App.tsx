@@ -356,6 +356,18 @@ export default function App() {
         )
       : false;
 
+  const canDistribute =
+    isCreator && players.length > 0 && questions.length === players.length && assignments.length === 0;
+
+  const distributeProblem = (() => {
+    if (!isCreator) return "Você não é o criador.";
+    if (assignments.length > 0) return "Perguntas já distribuídas.";
+    if (players.length === 0) return "Ainda não há participantes.";
+    if (questions.length < players.length) return `Faltam ${players.length - questions.length} pergunta(s).`;
+    if (questions.length > players.length) return `Há mais perguntas do que jogadores (${questions.length} > ${players.length}).`;
+    return null;
+  })();
+
   return (
     <div style={{ padding: 24 }}>
       <h1>🎲 Party Room Connect Lite</h1>
@@ -422,21 +434,25 @@ export default function App() {
         Perguntas enviadas: {questions.length} de {players.length}
       </p>
 
-      {players.length > 0 &&
-        questions.length === players.length &&
-        assignments.length === 0 && (
-          <>
-                    <p>✅ Todos os participantes enviaram suas perguntas!</p>
+      {players.length > 0 && (
+        <>
+          <p>✅ Todos os participantes: {players.length}</p>
 
-                    {isCreator ? (
-                      <button onClick={handleDistributeQuestions}>
-                        🎲 Distribuir Perguntas
-                      </button>
-                    ) : (
-                      <p>Esperando o criador distribuir as perguntas...</p>
-                    )}
-          </>
-        )}
+          {canDistribute ? (
+            <>
+              <p>✅ Todos os participantes enviaram suas perguntas!</p>
+              <button onClick={handleDistributeQuestions}>🎲 Distribuir Perguntas</button>
+            </>
+          ) : (
+            <>
+              <p>Status: {distributeProblem}</p>
+              {!isCreator && questions.length === players.length && assignments.length === 0 && (
+                <p>Esperando o criador distribuir as perguntas...</p>
+              )}
+            </>
+          )}
+        </>
+      )}
 
       <hr />
 
