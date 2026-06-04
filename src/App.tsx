@@ -1,31 +1,49 @@
-import { useEffect, useState } from "react";
-import { createResponse, getResponses } from "./services/responses";
+import { useCallback, useEffect, useState } from "react";
 import { createRoom } from "./services/rooms";
 import { createQuestion, getQuestions } from "./services/questions";
 import { createAssignment, getAssignments } from "./services/assignments";
 import { supabase } from "./lib/supabase";
+
+type Player = {
+  id: string;
+  name: string;
+};
+
+type Room = {
+  id: string;
+  code: string;
+};
+
+type Question = {
+  id: string;
+  player_id: string;
+  question_text: string;
+};
+
+type Assignment = {
+  id: string;
+  player_id: string;
+  question_id: string;
+  room_id: string;
+};
 
 export default function App() {
   const [roomCode, setRoomCode] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [playerName, setPlayerName] = useState("");
 
-  const [players, setPlayers] = useState<any[]>([]);
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
 
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [responses, setResponses] = useState<any[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
 
-  const [myQuestion, setMyQuestion] = useState<any>(null);
-
-  const [answerText, setAnswerText] = useState("");
-
-  const [currentRoom, setCurrentRoom] = useState<any>(null);
-  const [currentPlayer, setCurrentPlayer] = useState<any>(null);
+  const [myQuestion, setMyQuestion] = useState<Question | null>(null);
+  const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
+  const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
 
   const [questionText, setQuestionText] = useState("");
 
-  async function loadMyQuestion() {
+  const loadMyQuestion = useCallback(async () => {
     if (!currentPlayer || !currentRoom) return;
 
     const { data: roomAssignments } = await getAssignments(currentRoom.id);
@@ -43,7 +61,7 @@ export default function App() {
       .single();
 
     setMyQuestion(question);
-  }
+  }, [currentPlayer, currentRoom]);
 
   async function handleCreateRoom() {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -92,8 +110,13 @@ export default function App() {
     loadQuestions(room.id);
     const { data: roomAssignments } = await getAssignments(room.id);
 
+    if (roomAssignments?.length) {
+      setAssignments(roomAssignments);
+      loadMyQuestion();
+    }
+
     setAssignments(roomAssignments || []);
-    loadResponses(room.id);
+    await loadMyQuestion();
   }
 
   async function loadPlayers(roomId: string) {
@@ -134,11 +157,6 @@ export default function App() {
     setQuestionText("");
 
     loadQuestions(currentRoom.id);
-  }
-  async function loadResponses(roomId: string) {
-    const { data } = await getResponses(roomId);
-
-    setResponses(data || []);
   }
   useEffect(() => {
     if (!joinCode) return;
@@ -210,7 +228,7 @@ export default function App() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [joinCode]);
+  }, [joinCode, currentRoom, loadMyQuestion]);
   async function handleDistributeQuestions() {
     if (!currentRoom) return;
 
@@ -337,6 +355,14 @@ export default function App() {
       <br />
 
       <button onClick={handleSendQuestion}>Enviar Pergunta</button>
+
+      {myQuestion && (
+        <div style={{ marginTop: 24, padding: 16, border: "1px solid #ddd" }}>
+          <h2>Pergunta Recebida</h2>
+          <p>O que você faria se...</p>
+          <strong>{myQuestion.question_text}</strong>
+        </div>
+      )}
     </div>
   );
 }
