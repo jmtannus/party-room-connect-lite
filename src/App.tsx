@@ -5,6 +5,7 @@ import {
   getQuestions,
 } from "./services/questions";
 import { supabase } from "./lib/supabase";
+import { createAssignment, getAssignments } from "./services/assignments";
 
 export default function App() {
   const [roomCode, setRoomCode] = useState("");
@@ -13,6 +14,8 @@ export default function App() {
 
   const [players, setPlayers] = useState<any[]>([]);
   const [questions, setQuestions] = useState<any[]>([]);
+
+  const [assignments, setAssignments] = useState<any[]>([]);
 
   const [currentRoom, setCurrentRoom] = useState<any>(null);
   const [currentPlayer, setCurrentPlayer] = useState<any>(null);
@@ -67,6 +70,10 @@ export default function App() {
 
     loadPlayers(room.id);
     loadQuestions(room.id);
+    const { data: roomAssignments } = 
+      await getAssignments(room.id);
+    
+    setAssignments(roomAssignments || []);
   }
 
   async function loadPlayers(roomId: string) {
@@ -161,6 +168,41 @@ export default function App() {
       supabase.removeChannel(channel);
     };
   }, [joinCode]);
+      async function handleDistributeQuestions() {
+  if (!currentRoom) return;
+
+  if (players.length !== questions.length) {
+    alert("Ainda faltam perguntas.");
+    return;
+  }
+
+  const shuffledQuestions = [...questions];
+
+  let valid = false;
+
+  while (!valid) {
+    shuffledQuestions.sort(() => Math.random() - 0.5);
+
+    valid = players.every(
+      (player, index) =>
+        shuffledQuestions[index].player_id !== player.id
+    );
+  }
+
+  for (let i = 0; i < players.length; i++) {
+    await createAssignment(
+      currentRoom.id,
+      players[i].id,
+      shuffledQuestions[i].id
+    );
+  }
+
+  const { data } = await getAssignments(currentRoom.id);
+
+  setAssignments(data || []);
+
+  alert("Perguntas distribuídas!");
+}
 
   return (
     <div style={{ padding: 24 }}>
@@ -221,10 +263,16 @@ export default function App() {
       </p>
 
       {players.length > 0 &&
-        questions.length === players.length && (
-          <p>
-            ✅ Todos os participantes enviaram suas perguntas!
-          </p>
+        questions.length === players.length && assignments.length === 0 &&(
+          <>
+            <p>
+              ✅ Todos os participantes enviaram suas perguntas!
+            </p>
+
+            <button onClick={handleDistributeQuestions}>
+              🎲 Distribuir Perguntas
+            </button>
+          </>
         )}
 
       <hr />
