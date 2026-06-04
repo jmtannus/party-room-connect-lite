@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createRoom } from "./services/rooms";
-import { createQuestion } from "./services/questions";
+import { createQuestion, getQuestions, } from "./services/questions";
 import { supabase } from "./lib/supabase";
 
 export default function App() {
@@ -14,6 +14,7 @@ export default function App() {
   const [currentPlayer, setCurrentPlayer] = useState<any>(null);
 
   const [questionText, setQuestionText] = useState("");
+  const [questions, setQuestions] = useState<any[]>([]);
 
   async function handleCreateRoom() {
     const code = Math.random()
@@ -62,6 +63,11 @@ export default function App() {
     setCurrentPlayer(player);
 
     loadPlayers(room.id);
+    loadQuestions(room.id);
+  }
+  async function loadQuestions(roomId: string) {
+    const { data } = await getQuestions(roomId);
+    setQuestions(data || []);
   }
 
   async function loadPlayers(roomId: string) {
@@ -73,6 +79,7 @@ export default function App() {
 
     setPlayers(data || []);
   }
+
 
   async function handleSendQuestion() {
     if (!currentRoom || !currentPlayer) {
@@ -94,6 +101,7 @@ export default function App() {
     alert("Pergunta enviada!");
 
     setQuestionText("");
+    loadQuestions(currentRoom.id);      
   }
 
   useEffect(() => {
@@ -178,6 +186,16 @@ export default function App() {
           </li>
         ))}
       </ul>
+      <p>
+        Perguntas enviadas: {questions.length} de {players.length}
+      </p>
+
+      {players.length > 0 &&
+        questions.length === players.length && (
+          <p>
+            ✅ Todos os participantes enviaram suas perguntas!
+          </p>
+      )}
 
       <hr />
 

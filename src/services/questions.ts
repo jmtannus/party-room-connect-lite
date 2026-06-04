@@ -22,3 +22,4 @@ export async function getQuestions(roomId: string) {
     .select("*")
     .eq("room_id", roomId);
 }
+
