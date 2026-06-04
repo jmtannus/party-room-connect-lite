@@ -124,6 +124,21 @@ export default function App() {
     await loadMyQuestion();
   }
 
+  async function handleLeave() {
+    if (!currentPlayer) return;
+
+    try {
+      await supabase.from("players").delete().eq("id", currentPlayer.id);
+    } catch (err) {
+      console.error(err);
+    }
+
+    setCurrentPlayer(null);
+    setIsCreator(false);
+    setAssignments([]);
+    setMyQuestion(null);
+  }
+
   async function loadPlayers(roomId: string) {
     const { data } = await supabase
       .from("players")
@@ -326,6 +341,9 @@ export default function App() {
           <strong>Você entrou como: {currentPlayer.name}</strong>
           <div>
             Papel: {isCreator ? "Criador da sala" : "Jogador"}
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <button onClick={handleLeave}>Sair</button>
           </div>
         </div>
       )}
