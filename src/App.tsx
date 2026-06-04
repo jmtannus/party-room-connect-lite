@@ -301,6 +301,7 @@ export default function App() {
         placeholder="Código da sala"
         value={joinCode}
         onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+        disabled={!!currentPlayer}
       />
 
       <br />
@@ -310,6 +311,7 @@ export default function App() {
         placeholder="Seu nome"
         value={playerName}
         onChange={(e) => setPlayerName(e.target.value)}
+        disabled={!!currentPlayer}
       />
 
       <br />
@@ -318,6 +320,15 @@ export default function App() {
       <button onClick={handleJoinRoom} disabled={!!currentPlayer}>
         Entrar
       </button>
+
+      {currentPlayer && (
+        <div style={{ marginTop: 12, padding: 12, border: "1px solid #eee" }}>
+          <strong>Você entrou como: {currentPlayer.name}</strong>
+          <div>
+            Papel: {isCreator ? "Criador da sala" : "Jogador"}
+          </div>
+        </div>
+      )}
 
       <hr />
 
