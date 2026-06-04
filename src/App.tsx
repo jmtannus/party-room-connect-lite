@@ -59,13 +59,17 @@ export default function App() {
   const loadMyQuestion = useCallback(async () => {
     if (!currentPlayer || !currentRoom) return;
 
-    const { data: roomAssignments } = await getAssignments(currentRoom.id);
+    const { data: myAssignment, error: asgError } = await supabase
+      .from("assignments")
+      .select("*")
+      .eq("room_id", currentRoom.id)
+      .eq("player_id", currentPlayer.id)
+      .single();
 
-    const myAssignment = roomAssignments?.find(
-      (a) => a.player_id === currentPlayer.id,
-    );
-
-    if (!myAssignment) return;
+    if (asgError || !myAssignment) {
+      setMyQuestion(null);
+      return;
+    }
 
     const { data: question } = await supabase
       .from("questions")
