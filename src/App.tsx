@@ -93,14 +93,6 @@ export default function App() {
   }
 
   async function handleSendQuestion() {
-    const { data: existingAssignments } =
-      await getAssignments(currentRoom.id);
-
-    if (existingAssignments?.length) {
-      alert("Perguntas já foram distribuídas.");
-      return;
-    }
-    
     if (!currentRoom || !currentPlayer) {
       alert("Entre na sala primeiro");
       return;
@@ -177,40 +169,48 @@ export default function App() {
     };
   }, [joinCode]);
       async function handleDistributeQuestions() {
-  if (!currentRoom) return;
+       if (!currentRoom) return;
+       
+       const { data: existingAssignments } =
+          await getAssignments(currentRoom.id);
 
-  if (players.length !== questions.length) {
-    alert("Ainda faltam perguntas.");
-    return;
-  }
+       if (existingAssignments?.length) {
+          alert("Perguntas já distribuídas.");
+          return;
+        }
 
-  const shuffledQuestions = [...questions];
+        if (players.length !== questions.length) {
+          alert("Ainda faltam perguntas.");
+          return;
+        }
 
-  let valid = false;
+        const shuffledQuestions = [...questions];
 
-  while (!valid) {
-    shuffledQuestions.sort(() => Math.random() - 0.5);
+        let valid = false;
 
-    valid = players.every(
-      (player, index) =>
-        shuffledQuestions[index].player_id !== player.id
-    );
-  }
+        while (!valid) {
+          shuffledQuestions.sort(() => Math.random() - 0.5);
 
-  for (let i = 0; i < players.length; i++) {
-    await createAssignment(
-      currentRoom.id,
-      players[i].id,
-      shuffledQuestions[i].id
-    );
-  }
+          valid = players.every(
+            (player, index) =>
+              shuffledQuestions[index].player_id !== player.id
+          );
+        }
 
-  const { data } = await getAssignments(currentRoom.id);
+        for (let i = 0; i < players.length; i++) {
+          await createAssignment(
+            currentRoom.id,
+            players[i].id,
+            shuffledQuestions[i].id
+          );
+        }
 
-  setAssignments(data || []);
+        const { data } = await getAssignments(currentRoom.id);
 
-  alert("Perguntas distribuídas!");
-}
+        setAssignments(data || []);
+
+        alert("Perguntas distribuídas!");
+      }
 
   return (
     <div style={{ padding: 24 }}>
