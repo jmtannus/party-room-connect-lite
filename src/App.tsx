@@ -93,6 +93,14 @@ export default function App() {
   }
 
   async function handleSendQuestion() {
+    const { data: existingAssignments } =
+      await getAssignments(currentRoom.id);
+
+    if (existingAssignments?.length) {
+      alert("Perguntas já foram distribuídas.");
+      return;
+    }
+    
     if (!currentRoom || !currentPlayer) {
       alert("Entre na sala primeiro");
       return;
