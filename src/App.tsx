@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { createResponse, getResponses,
+} from "./services/responses";
 import { createRoom } from "./services/rooms";
 import {
   createQuestion,
@@ -10,7 +12,7 @@ import {
 } from "./services/assignments";
 import { supabase } from "./lib/supabase";
 
-    export default function App() {
+export default function App() {
       const [roomCode, setRoomCode] = useState("");
       const [joinCode, setJoinCode] = useState("");
       const [playerName, setPlayerName] = useState("");
@@ -19,11 +21,38 @@ import { supabase } from "./lib/supabase";
       const [questions, setQuestions] = useState<any[]>([]);
 
       const [assignments, setAssignments] = useState<any[]>([]);
+      const [responses, setResponses] = useState<any[]>([]);
+
+      const [myQuestion, setMyQuestion] = useState<any>(null);
+
+      const [answerText, setAnswerText] = useState("");
 
       const [currentRoom, setCurrentRoom] = useState<any>(null);
       const [currentPlayer, setCurrentPlayer] = useState<any>(null);
 
       const [questionText, setQuestionText] = useState("");
+
+      async function loadMyQuestion() {
+        if (!currentPlayer || !currentRoom) return;
+
+        const { data: roomAssignments } =
+          await getAssignments(currentRoom.id);
+
+        const myAssignment =
+          roomAssignments?.find(
+            (a) => a.player_id === currentPlayer.id
+          );
+
+        if (!myAssignment) return;
+
+        const { data: question } = await supabase
+          .from("questions")
+          .select("*")
+          .eq("id", myAssignment.question_id)
+          .single();
+
+        setMyQuestion(question);
+      }
 
       async function handleCreateRoom() {
         const code = Math.random()
@@ -77,6 +106,7 @@ import { supabase } from "./lib/supabase";
           await getAssignments(room.id);
         
         setAssignments(roomAssignments || []);
+        loadResponses(room.id);
       }
 
       async function loadPlayers(roomId: string) {
@@ -118,7 +148,11 @@ import { supabase } from "./lib/supabase";
 
         loadQuestions(currentRoom.id);
       }
+      async function loadResponses(roomId: string) {
+        const { data } = await getResponses(roomId);
 
+        setResponses(data || []);
+      }
       useEffect(() => {
         if (!joinCode) return;
 
