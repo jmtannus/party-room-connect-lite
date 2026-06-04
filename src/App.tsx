@@ -270,6 +270,16 @@ export default function App() {
 
     loadQuestions(currentRoom.id);
   }
+
+  useEffect(() => {
+    if (!currentRoom) return;
+
+    if (questions.length > players.length || (assignments.length === 0 && questions.length === players.length && players.length > 0)) {
+      loadPlayers(currentRoom.id);
+      loadQuestions(currentRoom.id);
+    }
+  }, [currentRoom, players.length, questions.length, assignments.length]);
+
   useEffect(() => {
     if (!joinCode) return;
 
