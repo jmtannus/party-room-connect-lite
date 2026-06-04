@@ -637,6 +637,11 @@ export default function App() {
           <div>
             Papel: {isCreator ? "Criador da sala" : "Jogador"}
           </div>
+          {!isCreator && cardAssignments.length > 0 && !myCard && (
+            <div style={{ marginTop: 8 }}>
+              <button onClick={loadMyCard}>🔃 Carregar minha ficha</button>
+            </div>
+          )}
           <div style={{ marginTop: 8 }}>
             <button onClick={handleLeave}>Sair</button>
           </div>
