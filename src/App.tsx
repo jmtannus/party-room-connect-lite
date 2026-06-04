@@ -42,6 +42,7 @@ export default function App() {
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
 
   const [questionText, setQuestionText] = useState("");
+  const [isCreator, setIsCreator] = useState(false);
 
   const loadMyQuestion = useCallback(async () => {
     if (!currentPlayer || !currentRoom) return;
@@ -75,6 +76,7 @@ export default function App() {
 
     setRoomCode(data.code);
     setJoinCode(data.code);
+    setIsCreator(true);
   }
 
   async function handleJoinRoom() {
@@ -105,6 +107,9 @@ export default function App() {
 
     setCurrentRoom(room);
     setCurrentPlayer(player);
+    // If the current client created the room earlier in this session,
+    // keep the isCreator flag. Otherwise ensure it's false.
+    if (joinCode !== room.code) setIsCreator(false);
 
     loadPlayers(room.id);
     loadQuestions(room.id);
@@ -232,6 +237,11 @@ export default function App() {
   async function handleDistributeQuestions() {
     if (!currentRoom) return;
 
+    if (!isCreator || !currentPlayer) {
+      alert("Apenas o criador da sala pode distribuir as perguntas.");
+      return;
+    }
+
     const { data: existingAssignments } = await getAssignments(currentRoom.id);
 
     if (existingAssignments?.length) {
@@ -325,11 +335,15 @@ export default function App() {
         questions.length === players.length &&
         assignments.length === 0 && (
           <>
-            <p>✅ Todos os participantes enviaram suas perguntas!</p>
+                    <p>✅ Todos os participantes enviaram suas perguntas!</p>
 
-            <button onClick={handleDistributeQuestions}>
-              🎲 Distribuir Perguntas
-            </button>
+                    {isCreator ? (
+                      <button onClick={handleDistributeQuestions}>
+                        🎲 Distribuir Perguntas
+                      </button>
+                    ) : (
+                      <p>Esperando o criador distribuir as perguntas...</p>
+                    )}
           </>
         )}
 
