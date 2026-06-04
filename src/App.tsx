@@ -3,6 +3,7 @@ import { createRoom } from "./services/rooms";
 import { createQuestion, getQuestions } from "./services/questions";
 import { createAssignment, getAssignments } from "./services/assignments";
 import { createResponse, getResponses } from "./services/responses";
+import { joinRoom, getPlayers as svcGetPlayers } from "./services/players";
 import { supabase } from "./lib/supabase";
 
 type Player = {
@@ -55,6 +56,7 @@ export default function App() {
 
   const [questionText, setQuestionText] = useState("");
   const [isCreator, setIsCreator] = useState(false);
+  const [validationMessages, setValidationMessages] = useState<string[]>([]);
 
   const loadMyQuestion = useCallback(async () => {
     if (!currentPlayer || !currentRoom) return;
@@ -93,6 +95,27 @@ export default function App() {
     setRoomCode(data.code);
     setJoinCode(data.code);
     setIsCreator(true);
+
+    // If the creator provided a name before creating the room, create the player record
+    if (playerName && playerName.trim()) {
+      try {
+        const { data: player, error: pErr } = await joinRoom(data.id, playerName.trim());
+        if (!pErr && player) {
+          setCurrentRoom(data);
+          setCurrentPlayer(player);
+          // refresh lists
+          loadPlayers(data.id);
+          loadQuestions(data.id);
+          const { data: roomAssignments } = await getAssignments(data.id);
+          if (roomAssignments?.length) {
+            setAssignments(roomAssignments);
+            await loadMyQuestion();
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
   }
 
   async function handleJoinRoom() {
@@ -107,14 +130,7 @@ export default function App() {
       return;
     }
 
-    const { data: player, error } = await supabase
-      .from("players")
-      .insert({
-        room_id: room.id,
-        name: playerName,
-      })
-      .select()
-      .single();
+    const { data: player, error } = await joinRoom(room.id, playerName);
 
     if (error) {
       console.error(error);
@@ -146,6 +162,64 @@ export default function App() {
     setResponses(data || []);
   }
 
+  async function runValidation() {
+    if (!currentRoom) {
+      setValidationMessages(["Nenhuma sala selecionada."]);
+      return;
+    }
+
+    const msgs: string[] = [];
+
+    const { data: playersData } = await svcGetPlayers(currentRoom.id);
+    const { data: questionsData } = await getQuestions(currentRoom.id);
+    const { data: assignmentsData } = await getAssignments(currentRoom.id);
+    const { data: responsesData } = await getResponses(currentRoom.id);
+
+    const p = playersData || [];
+    const q = questionsData || [];
+    const a = assignmentsData || [];
+    const r = responsesData || [];
+
+    msgs.push(`Players: ${p.length}`);
+    msgs.push(`Questions: ${q.length}`);
+    msgs.push(`Assignments: ${a.length}`);
+    msgs.push(`Responses: ${r.length}`);
+
+    if (p.length === 0) msgs.push("Ainda não há jogadores na sala.");
+    if (q.length < p.length) msgs.push(`Faltam ${p.length - q.length} pergunta(s).`);
+    if (q.length > p.length) msgs.push("Há mais perguntas do que jogadores.");
+    if (a.length === 0) msgs.push("As perguntas ainda não foram distribuídas.");
+    if (a.length > 0 && a.length !== p.length) msgs.push("Distribuição incompleta (assignments !== players).");
+
+    // check each player's assignment
+    for (const player of p) {
+      const asg = a.find((x: any) => x.player_id === player.id);
+      if (!asg) {
+        msgs.push(`Jogador ${player.name} (id=${player.id}) não recebeu atribuição.`);
+        continue;
+      }
+      const qItem = q.find((x: any) => x.id === asg.question_id);
+      if (!qItem) {
+        msgs.push(`Atribuição de ${player.name} aponta para pergunta ausente (id=${asg.question_id}).`);
+        continue;
+      }
+      if (qItem.player_id === player.id) msgs.push(`Atenção: ${player.name} recebeu a própria pergunta.`);
+    }
+
+    // verify current player has a question if assignments present
+    if (currentPlayer) {
+      const myAsg = a.find((x: any) => x.player_id === currentPlayer.id);
+      if (!myAsg) msgs.push("Você ainda não recebeu uma pergunta.");
+      else {
+        const qItem = q.find((x: any) => x.id === myAsg.question_id);
+        if (!qItem) msgs.push("Sua pergunta atribuída não foi encontrada.");
+        else msgs.push(`Sua pergunta: ${qItem.question_text}`);
+      }
+    }
+
+    setValidationMessages(msgs);
+  }
+
   async function handleLeave() {
     if (!currentPlayer) return;
 
@@ -162,11 +236,7 @@ export default function App() {
   }
 
   async function loadPlayers(roomId: string) {
-    const { data } = await supabase
-      .from("players")
-      .select("*")
-      .eq("room_id", roomId)
-      .order("created_at");
+    const { data } = await svcGetPlayers(roomId);
 
     setPlayers(data || []);
   }
@@ -451,6 +521,17 @@ export default function App() {
               )}
             </>
           )}
+
+          <div style={{ marginTop: 8 }}>
+            <button onClick={runValidation}>Executar Validação</button>
+            {validationMessages.length > 0 && (
+              <div style={{ marginTop: 8, padding: 8, border: "1px solid #eee" }}>
+                {validationMessages.map((m, i) => (
+                  <div key={i}>{m}</div>
+                ))}
+              </div>
+            )}
+          </div>
         </>
       )}
 
