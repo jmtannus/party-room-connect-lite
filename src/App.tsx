@@ -465,7 +465,7 @@ export default function App() {
     }
 
     for (let i = 0; i < players.length; i++) {
-      const { error: asgErr } = await createAssignment(
+      const { data: asg, error: asgErr } = await createAssignment(
         currentRoom.id,
         players[i].id,
         shuffledQuestions[i].id,
