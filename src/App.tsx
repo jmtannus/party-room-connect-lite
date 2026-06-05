@@ -519,6 +519,11 @@ export default function App() {
       return;
     }
 
+    if (assignments.length < players.length) {
+      alert("Erro: O número de perguntas atribuídas é menor que o número de jogadores.");
+      return;
+    }
+
     // Embaralha os assignments para distribuir como fichas
     const shuffledAssignments = [...assignments];
     let valid = false;
@@ -558,15 +563,35 @@ export default function App() {
       }
     }
 
+    const errors: string[] = [];
+
     for (let i = 0; i < players.length; i++) {
-      await createCardAssignment(
+      const asg = shuffledAssignments[i];
+      if (!asg) continue;
+
+      const { error: insertErr } = await createCardAssignment(
         currentRoom.id,
         players[i].id,
-        shuffledAssignments[i].id,
+        asg.id,
       );
+      if (insertErr) {
+        errors.push(insertErr.message);
+      }
     }
 
-    const { data } = await getCardAssignments(currentRoom.id);
+    if (errors.length > 0) {
+      console.error("Erros ao criar card_assignments:", errors);
+      alert(`Erro ao distribuir fichas no banco de dados:\n${errors[0]}`);
+      return;
+    }
+
+    const { data, error: fetchErr } = await getCardAssignments(currentRoom.id);
+    if (fetchErr) {
+      console.error("Erro ao buscar card_assignments:", fetchErr);
+      alert(`Erro ao carregar fichas distribuídas: ${fetchErr.message}`);
+      return;
+    }
+
     setCardAssignments(data || []);
     await loadMyCard();
     alert("Fichas distribuídas!");
