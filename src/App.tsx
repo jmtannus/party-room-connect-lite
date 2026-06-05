@@ -663,238 +663,274 @@ export default function App() {
   })();
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1>🎲 Party Room Connect Lite</h1>
+    <div className="container">
+      <header className="app-header">
+        <h1 className="app-title">🎲 Party Room Connect</h1>
+        <p className="app-subtitle">Sem papel e caneta. Apenas risadas! ⚡</p>
+      </header>
 
-      <button onClick={handleCreateRoom}>Criar Sala</button>
+      {/* TELA INICIAL: ENTRAR / CRIAR SALA */}
+      {!currentPlayer && (
+        <div className="glass-card">
+          <h2>🚪 Entrar em uma Sala</h2>
+          <input
+            className="input-field"
+            placeholder="CÓDIGO DA SALA (Ex: QQU5Y7)"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+          />
+          <input
+            className="input-field"
+            placeholder="Seu nome ou apelido"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+          />
+          <button 
+            className="btn btn-primary" 
+            onClick={handleJoinRoom} 
+            disabled={!joinCode || !playerName.trim()}
+          >
+            Entrar na Sala
+          </button>
 
-      {roomCode && (
-        <p>
-          Código da sala: <strong>{roomCode}</strong>
-        </p>
-      )}
+          <div className="divider" />
 
-      <hr />
-
-      <h2>Entrar na Sala</h2>
-
-      <input
-        placeholder="Código da sala"
-        value={joinCode}
-        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-        disabled={!!currentPlayer}
-      />
-
-      <br />
-      <br />
-
-      <input
-        placeholder="Seu nome"
-        value={playerName}
-        onChange={(e) => setPlayerName(e.target.value)}
-        disabled={!!currentPlayer}
-      />
-
-      <br />
-      <br />
-
-      <button onClick={handleJoinRoom} disabled={!!currentPlayer}>
-        Entrar
-      </button>
-
-      {currentPlayer && (
-        <div style={{ marginTop: 12, padding: 12, border: "1px solid #eee" }}>
-          <strong>Você entrou como: {currentPlayer.name}</strong>
-          <div>
-            Papel: {isCreator ? "Criador da sala" : "Jogador"}
-          </div>
-          {!isCreator && cardAssignments.length > 0 && !myCard && (
-            <div style={{ marginTop: 8 }}>
-              <button onClick={loadMyCard}>🔃 Carregar minha ficha</button>
+          <h2>✨ Ou crie a sua</h2>
+          <button className="btn btn-secondary" onClick={handleCreateRoom}>
+            Criar Nova Sala
+          </button>
+          
+          {roomCode && (
+            <div className="room-code-box" style={{ marginTop: 10 }}>
+              <div className="room-code-title">Sua Sala foi Criada!</div>
+              <div className="room-code-number">{roomCode}</div>
+              <p style={{ fontSize: 12, marginTop: 6, color: "var(--text-muted)", fontWeight: 500 }}>
+                Compartilhe o código acima para os amigos entrarem.
+              </p>
             </div>
           )}
-          {myCard && (
-            <div style={{ marginTop: 8 }}>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={hideResponderName}
-                  onChange={(e) => setHideResponderName(e.target.checked)}
-                />
-                Ocultar nome de quem respondeu
-              </label>
-            </div>
-          )}
-          <div style={{ marginTop: 8 }}>
-            <button onClick={handleLeave}>Sair</button>
-          </div>
         </div>
       )}
 
-      <hr />
-
-      <h2>Participantes</h2>
-
-      <ul>
-        {players.map((player) => (
-          <li key={player.id}>{player.name}</li>
-        ))}
-      </ul>
-
-      <p>
-        Perguntas enviadas: {questions.length} de {players.length}
-      </p>
-
-      {players.length > 0 && (
+      {/* PAINEL DO JOGADOR LOGADO */}
+      {currentPlayer && (
         <>
-          <p>✅ Todos os participantes: {players.length}</p>
+          {/* Card de Identificação */}
+          <div className="glass-card">
+            <div className="room-code-box">
+              <div className="room-code-title">Código da Sala</div>
+              <div className="room-code-number">{currentRoom?.code}</div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 5 }}>
+              <div>
+                <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Você está como:</span>
+                <h2 style={{ fontSize: 20, marginTop: 2 }}>👤 {currentPlayer.name}</h2>
+                <span style={{ fontSize: 12, color: "var(--primary-hover)", fontWeight: 700 }}>
+                  {isCreator ? "👑 CRIADOR DA SALA" : "🎮 JOGADOR"}
+                </span>
+              </div>
+              <button className="btn btn-danger" style={{ width: "auto", padding: "10px 16px" }} onClick={handleLeave}>
+                Sair
+              </button>
+            </div>
+          </div>
 
-          {canDistribute ? (
-            <>
-              <p>✅ Todos os participantes enviaram suas perguntas!</p>
-              <button onClick={handleDistributeQuestions}>🎲 Distribuir Perguntas</button>
-            </>
-          ) : (
-            <>
-              <p>Status: {distributeProblem}</p>
-              {!isCreator && questions.length === players.length && assignments.length === 0 && (
-                <p>Esperando o criador distribuir as perguntas...</p>
+          {/* Participantes na sala */}
+          <div className="glass-card">
+            <h2>👥 Participantes ({players.length})</h2>
+            <div className="players-badge-container">
+              {players.map((p) => (
+                <span className="player-badge" key={p.id}>
+                  {p.name}
+                </span>
+              ))}
+            </div>
+            
+            <div className="divider" />
+            
+            <p style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}>
+              Perguntas enviadas: <strong>{questions.length} de {players.length}</strong>
+            </p>
+
+            {players.length > 0 && (
+              <div style={{ marginTop: 5 }}>
+                {canDistribute ? (
+                  <>
+                    <div className="status-msg status-success" style={{ marginBottom: 12 }}>
+                      🎉 Todos enviaram as perguntas! Pronto para jogar.
+                    </div>
+                    <button className="btn btn-primary" onClick={handleDistributeQuestions}>
+                      🎲 Distribuir Perguntas
+                    </button>
+                  </>
+                ) : (
+                  <div>
+                    {assignments.length > 0 ? (
+                      <div className="status-msg status-success">
+                        ✅ Perguntas já foram distribuídas!
+                      </div>
+                    ) : (
+                      <div className="status-msg status-warning">
+                        ⏳ {distributeProblem || (!isCreator && "Esperando o criador iniciar a distribuição...")}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Painel de Validação e Debug */}
+            <div style={{ marginTop: 5 }}>
+              <button className="btn btn-secondary" style={{ padding: "8px 12px", fontSize: 12, width: "auto" }} onClick={runValidation}>
+                🔎 Validar Sala
+              </button>
+              {validationMessages.length > 0 && (
+                <div className="validation-box" style={{ marginTop: 10 }}>
+                  {validationMessages.map((m, i) => (
+                    <div className="validation-item" key={i}>• {m}</div>
+                  ))}
+                </div>
               )}
-            </>
-          )}
+            </div>
+          </div>
 
-          <div style={{ marginTop: 8 }}>
-            <button onClick={runValidation}>Executar Validação</button>
-            {validationMessages.length > 0 && (
-              <div style={{ marginTop: 8, padding: 8, border: "1px solid #eee" }}>
-                {validationMessages.map((m, i) => (
-                  <div key={i}>{m}</div>
-                ))}
+          {/* Enviar / Responder Pergunta */}
+          <div className="glass-card">
+            <h2>✍️ Sua Pergunta</h2>
+            <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
+              Escreva uma pergunta curiosa ou engraçada completando a frase: <br />
+              <strong>O que você faria se...</strong>
+            </p>
+            <input
+              className="input-field"
+              placeholder="ganhasse na loteria? / sumisse do mapa?"
+              value={questionText}
+              onChange={(e) => setQuestionText(e.target.value)}
+            />
+            <button
+              className="btn btn-primary"
+              onClick={handleSendQuestion}
+              disabled={!questionText.trim()}
+            >
+              Enviar Pergunta
+            </button>
+
+            {/* Pergunta Recebida */}
+            {myQuestion && (
+              <div className="game-card question-card">
+                <div className="card-title">❓ Pergunta Recebida</div>
+                <div className="card-question-text">O que você faria se... {myQuestion.question_text}</div>
+
+                {assignments.length === players.length && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 15 }}>
+                    <p style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}>Escreva sua resposta:</p>
+                    <input
+                      className="input-field"
+                      placeholder="Sua resposta mais criativa..."
+                      value={answerText}
+                      onChange={(e) => setAnswerText(e.target.value)}
+                      disabled={hasAnswered}
+                    />
+                    {!hasAnswered && (
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={isAnswerAnonymous}
+                          onChange={(e) => setIsAnswerAnonymous(e.target.checked)}
+                        />
+                        Responder de forma anônima 🤫
+                      </label>
+                    )}
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSendAnswer}
+                      disabled={hasAnswered || !answerText.trim()}
+                    >
+                      Enviar Resposta
+                    </button>
+                    {hasAnswered && (
+                      <p style={{ fontSize: 13, color: "#86efac", fontWeight: "700", textAlign: "center" }}>
+                        ✅ Resposta enviada!
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
-        </>
-      )}
 
-      <hr />
-
-      <h2>Sua Pergunta</h2>
-
-      <p>Complete a frase:</p>
-
-      <strong>O que você faria se...</strong>
-
-      <br />
-      <br />
-
-      <input
-        style={{ width: "400px" }}
-        placeholder="ganhasse na loteria?"
-        value={questionText}
-        onChange={(e) => setQuestionText(e.target.value)}
-      />
-
-      <br />
-      <br />
-
-      <button onClick={handleSendQuestion}>Enviar Pergunta</button>
-
-      {myQuestion && (
-        <div style={{ marginTop: 24, padding: 16, border: "1px solid #ddd" }}>
-          <h2>Pergunta Recebida</h2>
-          <p>O que você faria se...</p>
-          <strong>{myQuestion.question_text}</strong>
-
-          {assignments.length === players.length && (
-            <div style={{ marginTop: 12 }}>
-              <p>Responda:</p>
-              <input
-                style={{ width: "400px" }}
-                placeholder="Escreva sua resposta..."
-                value={answerText}
-                onChange={(e) => setAnswerText(e.target.value)}
-                disabled={hasAnswered}
-              />
-              {!hasAnswered && (
-                <div style={{ marginTop: 8 }}>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      type="checkbox"
-                      checked={isAnswerAnonymous}
-                      onChange={(e) => setIsAnswerAnonymous(e.target.checked)}
-                    />
-                    Responder anonimamente (ocultar meu nome nas fichas)
-                  </label>
+          {/* Distribuição de Fichas (Fase Final) */}
+          {allAnswered && (
+            <div className="glass-card">
+              <h2>🃏 Distribuição de Fichas</h2>
+              {canDistributeCards ? (
+                <>
+                  <div className="status-msg status-success" style={{ marginBottom: 12 }}>
+                    🎉 Todos responderam as perguntas! Pronto para revelar as fichas.
+                  </div>
+                  <button className="btn btn-primary" onClick={handleDistributeCards}>
+                    🃏 Distribuir Fichas
+                  </button>
+                </>
+              ) : (
+                <div className="status-msg status-warning">
+                  ⏳ {cardDistributeProblem || (!isCreator && "Esperando o criador distribuir as fichas...")}
                 </div>
               )}
-              <br />
-              <br />
-              <button onClick={handleSendAnswer} disabled={hasAnswered || !answerText.trim()}>
-                Enviar Resposta
-              </button>
-              {hasAnswered && <p>Você já respondeu essa pergunta.</p>}
             </div>
           )}
-        </div>
-      )}
 
-      <hr />
+          {/* Botões de Recarga Manual para Jogadores */}
+          {!isCreator && assignments.length > 0 && !myQuestion && (
+            <button className="btn btn-secondary" onClick={loadMyQuestion}>
+              🔃 Sincronizar Minha Pergunta
+            </button>
+          )}
 
-      {allAnswered && (
-        <>
-          <h2>Distribuir Fichas</h2>
+          {!isCreator && cardAssignments.length > 0 && !myCard && (
+            <button className="btn btn-secondary" onClick={loadMyCard}>
+              🔃 Sincronizar Minha Ficha
+            </button>
+          )}
 
-          {canDistributeCards ? (
-            <>
-              <p>✅ Todos responderam suas perguntas!</p>
-              <button onClick={handleDistributeCards}>🃏 Distribuir Fichas</button>
-            </>
-          ) : (
-            <>
-              <p>Status: {cardDistributeProblem}</p>
-              {!isCreator && allAnswered && cardAssignments.length === 0 && (
-                <p>Esperando o criador distribuir as fichas...</p>
-              )}
-            </>
+          {/* Ficha Revelada (O Grande Momento!) */}
+          {myCard && (
+            <div className="game-card ficha-card">
+              <div className="card-title">🎴 Sua Ficha Revelada</div>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
+                Leia esta pergunta para o amigo do lado direito, e ele deve responder com a resposta abaixo!
+              </p>
+              <div className="card-question-text">
+                O que você faria se... {myCard.assignment && (
+                  (() => {
+                    const question = questions.find((q) => q.id === myCard.assignment.question_id);
+                    return question?.question_text || "...";
+                  })()
+                )}
+              </div>
+              <div className="card-answer-text">
+                {myCard.response.answer_text}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 15 }}>
+                <label className="checkbox-label" style={{ fontSize: 12 }}>
+                  <input
+                    type="checkbox"
+                    checked={hideResponderName}
+                    onChange={(e) => setHideResponderName(e.target.checked)}
+                  />
+                  Ocultar nome
+                </label>
+                <div className="card-meta">
+                  Por: {myCard.response.is_anonymous || hideResponderName ? "Anônimo 🤫" : (() => {
+                    const responder = players.find((p) => p.id === myCard.response.player_id);
+                    return responder?.name || "Desconhecido";
+                  })()}
+                </div>
+              </div>
+            </div>
           )}
         </>
-      )}
-
-      {/* Botão para entrantes carregarem manualmente sua pergunta caso já tenha sido distribuída */}
-      {currentPlayer && !isCreator && assignments.length > 0 && !myQuestion && (
-        <div style={{ marginTop: 12 }}>
-          <button onClick={loadMyQuestion}>🔃 Carregar minha pergunta</button>
-        </div>
-      )}
-
-      {/* Botão para entrantes carregarem manualmente sua ficha caso já tenha sido distribuída */}
-      {currentPlayer && !isCreator && cardAssignments.length > 0 && !myCard && (
-        <div style={{ marginTop: 12 }}>
-          <button onClick={loadMyCard}>🔃 Carregar minha ficha</button>
-        </div>
-      )}
-
-      {myCard && (
-        <div style={{ marginTop: 24, padding: 16, border: "2px solid #2196F3" }}>
-          <h2>🎴 Sua Ficha Recebida</h2>
-          <p>Pergunta:</p>
-          <strong>O que você faria se... {myCard.assignment && (
-            (() => {
-              const question = questions.find((q) => q.id === myCard.assignment.question_id);
-              return question?.question_text;
-            })()
-          )}</strong>
-          <p style={{ marginTop: 12 }}>Resposta:</p>
-          <blockquote style={{ fontStyle: "italic", margin: "8px 0", padding: "8px 12px", borderLeft: "4px solid #2196F3" }}>
-            {myCard.response.answer_text}
-          </blockquote>
-          <p style={{ marginTop: 12, fontSize: "0.9em", color: "#666" }}>
-            Respondida por: {myCard.response.is_anonymous || hideResponderName ? "Anônimo" : (() => {
-              const responder = players.find((p) => p.id === myCard.response.player_id);
-              return responder?.name || "Desconhecido";
-            })()}
-          </p>
-        </div>
       )}
     </div>
   );
