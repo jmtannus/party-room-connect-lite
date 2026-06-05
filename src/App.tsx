@@ -341,11 +341,14 @@ export default function App() {
   useEffect(() => {
     if (!currentRoom) return;
 
-    if (questions.length > players.length || (assignments.length === 0 && questions.length === players.length && players.length > 0)) {
-      loadPlayers(currentRoom.id);
-      loadQuestions(currentRoom.id);
-    }
-  }, [currentRoom, players.length, questions.length, assignments.length, loadPlayers, loadQuestions]);
+    reloadRoomState(currentRoom.id);
+
+    const interval = setInterval(() => {
+      reloadRoomState(currentRoom.id);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [currentRoom, reloadRoomState]);
 
   useEffect(() => {
     if (currentPlayer && currentRoom) {
