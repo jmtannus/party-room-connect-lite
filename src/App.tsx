@@ -522,13 +522,40 @@ export default function App() {
     // Embaralha os assignments para distribuir como fichas
     const shuffledAssignments = [...assignments];
     let valid = false;
+    let attempts = 0;
 
-    while (!valid) {
+    while (!valid && attempts < 1000) {
       shuffledAssignments.sort(() => Math.random() - 0.5);
+      attempts++;
 
-      valid = players.every(
-        (player, index) => shuffledAssignments[index].player_id !== player.id,
-      );
+      valid = players.every((player, index) => {
+        const asg = shuffledAssignments[index];
+        const question = questions.find((q) => q.id === asg.question_id);
+        
+        // A resposta não pode ser do próprio jogador
+        const isNotOwnResponse = asg.player_id !== player.id;
+        
+        // A pergunta não pode ser do próprio jogador (se houver mais de 2 jogadores na sala)
+        const isNotOwnQuestion = players.length > 2 && question
+          ? question.player_id !== player.id
+          : true;
+
+        return isNotOwnResponse && isNotOwnQuestion;
+      });
+    }
+
+    // Se após 1000 tentativas não conseguirmos evitar a própria pergunta (ou se só há 2 jogadores),
+    // garantimos pelo menos que a resposta não seja da própria pessoa.
+    if (!valid) {
+      valid = false;
+      attempts = 0;
+      while (!valid && attempts < 1000) {
+        shuffledAssignments.sort(() => Math.random() - 0.5);
+        attempts++;
+        valid = players.every(
+          (player, index) => shuffledAssignments[index].player_id !== player.id,
+        );
+      }
     }
 
     for (let i = 0; i < players.length; i++) {
