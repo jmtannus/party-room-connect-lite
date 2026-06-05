@@ -4,7 +4,8 @@ export async function createResponse(
   roomId: string,
   playerId: string,
   questionId: string,
-  answerText: string
+  answerText: string,
+  isAnonymous: boolean = false
 ) {
   return supabase
     .from("responses")
@@ -13,6 +14,7 @@ export async function createResponse(
       player_id: playerId,
       question_id: questionId,
       answer_text: answerText,
+      is_anonymous: isAnonymous,
     })
     .select()
     .single();

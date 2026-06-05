@@ -35,6 +35,7 @@ type Response = {
   player_id: string;
   question_id: string;
   answer_text: string;
+  is_anonymous?: boolean;
 };
 
 type CardAssignment = {
@@ -62,6 +63,7 @@ export default function App() {
   const [myCard, setMyCard] = useState<{ assignment: Assignment; response: Response } | null>(null);
 
   const [answerText, setAnswerText] = useState("");
+  const [isAnswerAnonymous, setIsAnswerAnonymous] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
 
@@ -614,6 +616,7 @@ export default function App() {
       currentPlayer.id,
       myQuestion.id,
       answerText,
+      isAnswerAnonymous,
     );
 
     if (error) {
@@ -622,6 +625,7 @@ export default function App() {
     }
 
     setAnswerText("");
+    setIsAnswerAnonymous(false);
     await loadResponses(currentRoom.id);
     alert("Resposta enviada!");
   }
@@ -811,6 +815,18 @@ export default function App() {
                 onChange={(e) => setAnswerText(e.target.value)}
                 disabled={hasAnswered}
               />
+              {!hasAnswered && (
+                <div style={{ marginTop: 8 }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={isAnswerAnonymous}
+                      onChange={(e) => setIsAnswerAnonymous(e.target.checked)}
+                    />
+                    Responder anonimamente (ocultar meu nome nas fichas)
+                  </label>
+                </div>
+              )}
               <br />
               <br />
               <button onClick={handleSendAnswer} disabled={hasAnswered || !answerText.trim()}>
@@ -873,7 +889,7 @@ export default function App() {
             {myCard.response.answer_text}
           </blockquote>
           <p style={{ marginTop: 12, fontSize: "0.9em", color: "#666" }}>
-            Respondida por: {hideResponderName ? "Anônimo" : (() => {
+            Respondida por: {myCard.response.is_anonymous || hideResponderName ? "Anônimo" : (() => {
               const responder = players.find((p) => p.id === myCard.response.player_id);
               return responder?.name || "Desconhecido";
             })()}
