@@ -348,6 +348,13 @@ export default function App() {
   }, [currentRoom, players.length, questions.length, assignments.length, loadPlayers, loadQuestions]);
 
   useEffect(() => {
+    if (currentPlayer && currentRoom) {
+      loadMyQuestion();
+      loadMyCard();
+    }
+  }, [currentPlayer, currentRoom, loadMyQuestion, loadMyCard]);
+
+  useEffect(() => {
     if (!joinCode) return;
 
     const channel = supabase
@@ -780,6 +787,13 @@ export default function App() {
             </>
           )}
         </>
+      )}
+
+      {/* Botão para entrantes carregarem manualmente sua pergunta caso já tenha sido distribuída */}
+      {currentPlayer && !isCreator && assignments.length > 0 && !myQuestion && (
+        <div style={{ marginTop: 12 }}>
+          <button onClick={loadMyQuestion}>🔃 Carregar minha pergunta</button>
+        </div>
       )}
 
       {/* Botão para entrantes carregarem manualmente sua ficha caso já tenha sido distribuída */}
